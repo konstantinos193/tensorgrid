@@ -1,0 +1,19 @@
+[package]
+name = "model-registry"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cluster-types = { path = "../../crates/cluster-types" }
+model-format = { path = "../../crates/model-format" }
+observability = { path = "../../crates/observability" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+sha2 = "0.10"
+hex = "0.4"

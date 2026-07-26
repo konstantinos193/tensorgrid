@@ -1,0 +1,16 @@
+[package]
+name = "secure-pairing"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cluster-types = { path = "../cluster-types" }
+uuid = { workspace = true }
+serde = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = { workspace = true }
+rand = "0.8"
+sha2 = "0.10"
+ed25519-dalek = "2.0"

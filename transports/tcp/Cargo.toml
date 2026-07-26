@@ -1,0 +1,17 @@
+[package]
+name = "tcp-transport"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cluster-types = { path = "../../crates/cluster-types" }
+observability = { path = "../../crates/observability" }
+tokio = { workspace = true }
+tokio-util = { version = "0.7", features = ["codec"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+bytes = "1.6"

@@ -1,0 +1,23 @@
+[package]
+name = "end-to-end-test"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cluster-types = { path = "../../crates/cluster-types" }
+hardware-probe = { path = "../../crates/hardware-probe" }
+secure-pairing = { path = "../../crates/secure-pairing" }
+pipeline-executor = { path = "../../services/pipeline-executor" }
+scheduler = { path = "../../services/scheduler" }
+planner = { path = "../../services/planner" }
+ggml-runtime = { path = "../../runtimes/ggml" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+reqwest = { version = "0.11", features = ["json"] }

@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package cluster.memory;
+
+// Remote memory service for distributed tensor storage
+service RemoteMemory {
+  rpc Allocate(AllocateRequest) returns (AllocateResponse);
+  rpc Write(stream MemoryChunk) returns (WriteReceipt);
+  rpc Read(ReadRequest) returns (stream MemoryChunk);
+  rpc Copy(CopyRequest) returns (CopyReceipt);
+  rpc Pin(PinRequest) returns (PinReceipt);
+  rpc Release(ReleaseRequest) returns (ReleaseResponse);
+}
+
+message AllocateRequest {
+  string session_id = 1;
+  string tensor_id = 2;
+  uint64 size = 3;
+  uint32 alignment = 4;
+  string dtype = 5;
+  LifetimeClass lifetime = 6;
+  EvictionPolicy eviction = 7;
+  string checksum_mode = 8;
+}
+
+message AllocateResponse {
+  bool success = 1;
+  string allocation_id = 2;
+  uint64 offset = 3;
+  string error_message = 4;
+}
+
+message MemoryChunk {
+  string allocation_id = 1;
+  uint64 offset = 2;
+  bytes data = 3;
+  uint32 chunk_index = 4;
+  uint32 total_chunks = 5;
+}
+
+message WriteReceipt {
+  bool success = 1;
+  uint64 bytes_written = 2;
+  string checksum = 3;
+  string error_message = 4;
+}
+
+message ReadRequest {
+  string allocation_id = 1;
+  uint64 offset = 2;
+  uint64 length = 3;
+}
+
+message CopyRequest {
+  string source_allocation_id = 1;
+  string destination_allocation_id = 2;
+  uint64 length = 3;
+}
+
+message CopyReceipt {
+  bool success = 1;
+  uint64 bytes_copied = 2;
+  string error_message = 3;
+}
+
+message PinRequest {
+  string allocation_id = 1;
+}
+
+message PinReceipt {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message ReleaseRequest {
+  string allocation_id = 1;
+}
+
+message ReleaseResponse {
+  bool released = 1;
+}
+
+enum LifetimeClass {
+  SHORT_LIVED = 0;  // Single operation
+  SESSION = 1;      // Lifetime of inference session
+  MODEL = 2;        // Lifetime of loaded model
+  PERSISTENT = 3;   // Across sessions
+}
+
+enum EvictionPolicy {
+  LRU = 0;
+  FIFO = 1;
+  NEVER = 2;
+}

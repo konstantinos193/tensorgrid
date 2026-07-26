@@ -1,0 +1,11 @@
+[package]
+name = "model-format"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+byteorder = "1.5"

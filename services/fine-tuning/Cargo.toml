@@ -1,0 +1,19 @@
+[package]
+name = "fine-tuning"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cluster-types = { path = "../../crates/cluster-types" }
+model-registry = { path = "../model-registry" }
+scheduler = { path = "../scheduler" }
+planner = { path = "../planner" }
+ggml-runtime = { path = "../../runtimes/ggml" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }

@@ -1,0 +1,278 @@
+syntax = "proto3";
+
+package cluster.control;
+
+// Node control service - coordinator to node-agent communication
+service NodeControl {
+  // Initial registration and discovery
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  
+  // Hardware and capability probing
+  rpc Probe(ProbeRequest) returns (ProbeResponse);
+  rpc Benchmark(BenchmarkRequest) returns (BenchmarkResponse);
+  
+  // Execution plan management
+  rpc PreparePlan(PreparePlanRequest) returns (PreparePlanResponse);
+  rpc CommitPlan(CommitPlanRequest) returns (CommitPlanResponse);
+  rpc CancelPlan(CancelPlanRequest) returns (CancelPlanResponse);
+  
+  // Node lifecycle
+  rpc Drain(DrainRequest) returns (DrainResponse);
+  rpc SetPermissions(SetPermissionsRequest) returns (SetPermissionsResponse);
+}
+
+message RegisterRequest {
+  string node_name = 1;
+  string hostname = 2;
+  string cluster_id = 3;
+  bytes pairing_challenge = 4;
+  string pairing_signature = 5;
+}
+
+message RegisterResponse {
+  bool success = 1;
+  string node_id = 2;
+  bytes device_certificate = 3;
+  string error_message = 4;
+}
+
+message HeartbeatRequest {
+  string node_id = 1;
+  uint64 sequence = 2;
+  NodeResources resources = 3;
+  repeated HealthCheck health_checks = 4;
+}
+
+message HeartbeatResponse {
+  bool acknowledged = 1;
+  uint64 expected_sequence = 2;
+  repeated Command commands = 3;
+}
+
+message ProbeRequest {
+  string node_id = 1;
+}
+
+message ProbeResponse {
+  NodeCapabilities capabilities = 1;
+  repeated NetworkInterface interfaces = 2;
+}
+
+message BenchmarkRequest {
+  string node_id = 1;
+  BenchmarkType type = 2;
+  map<string, string> parameters = 3;
+}
+
+message BenchmarkResponse {
+  bool success = 1;
+  BenchmarkResult result = 2;
+  string error_message = 3;
+}
+
+message PreparePlanRequest {
+  string node_id = 1;
+  string model_id = 2;
+  repeated ModelShardSpec shards = 3;
+  repeated TensorAllocation allocations = 4;
+}
+
+message PreparePlanResponse {
+  bool accepted = 1;
+  string rejection_reason = 2;
+  uint64 estimated_load_time_ms = 3;
+}
+
+message CommitPlanRequest {
+  string node_id = 1;
+  string session_id = 2;
+  ExecutionGraph graph = 3;
+}
+
+message CommitPlanResponse {
+  bool committed = 1;
+  string error_message = 2;
+}
+
+message CancelPlanRequest {
+  string node_id = 1;
+  string session_id = 2;
+  string reason = 3;
+}
+
+message CancelPlanResponse {
+  bool cancelled = 1;
+}
+
+message DrainRequest {
+  string node_id = 1;
+  uint32 timeout_seconds = 2;
+  bool emergency = 3;
+}
+
+message DrainResponse {
+  bool draining = 1;
+  uint32 estimated_seconds = 2;
+}
+
+message SetPermissionsRequest {
+  string node_id = 1;
+  NodePermissions permissions = 2;
+}
+
+message SetPermissionsResponse {
+  bool updated = 1;
+}
+
+// Data types
+message NodeCapabilities {
+  CpuCapabilities cpu = 1;
+  repeated GpuCapabilities gpus = 2;
+  MemoryCapabilities memory = 3;
+  StorageCapabilities storage = 4;
+  repeated string supported_runtimes = 5;
+}
+
+message CpuCapabilities {
+  string architecture = 1;
+  uint32 cores = 2;
+  uint32 threads = 3;
+  uint32 frequency_mhz = 4;
+  repeated string features = 5;
+  uint32 numa_nodes = 6;
+}
+
+message GpuCapabilities {
+  string id = 1;
+  string name = 2;
+  string vendor = 3;
+  uint64 vram_bytes = 4;
+  string compute_capability = 5;
+  bool supports_peer_to_peer = 6;
+  bool supports_nvml = 7;
+  repeated string supported_precisions = 8;
+}
+
+message MemoryCapabilities {
+  uint64 total_bytes = 1;
+  uint64 available_bytes = 2;
+  uint64 bandwidth_mbps = 3;
+}
+
+message StorageCapabilities {
+  uint64 total_bytes = 1;
+  uint64 available_bytes = 2;
+  uint32 read_throughput_mbps = 3;
+  uint32 write_throughput_mbps = 4;
+}
+
+message NetworkInterface {
+  string name = 1;
+  string ip_address = 2;
+  string mac_address = 3;
+  uint32 bandwidth_mbps = 4;
+  bool supports_rdma = 5;
+}
+
+message NodeResources {
+  float cpu_usage_percent = 1;
+  uint64 memory_used_bytes = 2;
+  uint64 memory_committed_bytes = 3;
+  repeated GpuUsage gpu_usage = 4;
+  float network_tx_mbps = 5;
+  float network_rx_mbps = 6;
+  float temperature_celsius = 7;
+}
+
+message GpuUsage {
+  string device_id = 1;
+  float utilization_percent = 2;
+  uint64 vram_used_bytes = 3;
+  float temperature_celsius = 4;
+  float power_draw_watts = 5;
+}
+
+message HealthCheck {
+  string component = 1;
+  bool healthy = 2;
+  string message = 3;
+}
+
+message Command {
+  CommandType type = 1;
+  bytes payload = 2;
+}
+
+enum CommandType {
+  UNKNOWN = 0;
+  PAUSE_COMPUTE = 1;
+  RESUME_COMPUTE = 2;
+  RELEASE_MEMORY = 3;
+  SHUTDOWN = 4;
+}
+
+enum BenchmarkType {
+  CPU_MATRIX = 0;
+  CPU_MEMORY = 1;
+  GPU_MATRIX = 2;
+  GPU_MEMORY = 3;
+  HOST_TO_DEVICE = 4;
+  DEVICE_TO_HOST = 5;
+  NETWORK_LATENCY = 6;
+  NETWORK_BANDWIDTH = 7;
+  STORAGE_READ = 8;
+}
+
+message BenchmarkResult {
+  map<string, double> metrics = 1;
+  uint64 duration_ms = 2;
+}
+
+message ModelShardSpec {
+  string model_id = 1;
+  uint32 shard_id = 2;
+  repeated uint32 layers = 3;
+  string format = 4;
+  string quantization = 5;
+  uint64 bytes = 6;
+  string checksum = 7;
+}
+
+message TensorAllocation {
+  string tensor_id = 1;
+  repeated uint64 shape = 2;
+  string dtype = 3;
+  uint64 bytes = 4;
+  string device = 5;
+}
+
+message ExecutionGraph {
+  repeated Stage stages = 1;
+  repeated TensorTransfer transfers = 2;
+}
+
+message Stage {
+  uint32 id = 1;
+  string device = 2;
+  repeated uint32 layers = 3;
+}
+
+message TensorTransfer {
+  string tensor_id = 1;
+  string from_device = 2;
+  string to_device = 3;
+  uint64 bytes = 4;
+}
+
+message NodePermissions {
+  uint32 max_cpu_percent = 1;
+  uint32 max_cpu_threads = 2;
+  uint64 max_ram_bytes = 3;
+  bool gpu_enabled = 4;
+  uint64 max_vram_bytes = 5;
+  uint64 max_storage_bytes = 6;
+  bool allow_when_on_battery = 7;
+  bool pause_when_user_active = 8;
+  repeated string allowed_schedule = 9;
+}

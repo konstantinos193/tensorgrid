@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TensorGrid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            background: #22c55e;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #88c0d0;
+        }
+        
+        .card {
+            background: #252540;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .metric {
+            background: #1e1e38;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .node-list {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .node {
+            background: #1e1e38;
+            padding: 15px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .node-info h3 {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .node-info p {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .node-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .node-status.healthy {
+            background: #22c55e;
+        }
+        
+        .node-status.suspect {
+            background: #eab308;
+        }
+        
+        .node-status.offline {
+            background: #ef4444;
+        }
+        
+        .btn {
+            background: #88c0d0;
+            color: #1a1a2e;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #81a1c1;
+        }
+        
+        .loading {
+            color: #888;
+        }
+        
+        .error {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>TensorGrid</h1>
+            <span class="status" id="connection-status">Connecting...</span>
+        </header>
+        
+        <div class="section">
+            <h2>Cluster Overview</h2>
+            <div class="card">
+                <div class="metrics" id="cluster-metrics">
+                    <div class="metric">
+                        <div class="metric-label">CPU Units</div>
+                        <div class="metric-value" id="cpu-units">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Host Memory</div>
+                        <div class="metric-value" id="host-memory">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Device Memory</div>
+                        <div class="metric-value" id="device-memory">-</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Nodes</div>
+                        <div class="metric-value" id="node-count">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Connected Nodes</h2>
+            <div class="node-list" id="node-list">
+                <div class="loading">Loading nodes...</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Available Models</h2>
+            <div class="node-list" id="model-list">
+                <div class="loading">Loading models...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const { invoke } = window.__TAURI__.tauri;
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        async function loadCluster() {
+            try {
+                const cluster = await invoke('get_cluster');
+                document.getElementById('cpu-units').textContent = cluster.logical_resources.cpu_compute_units.toFixed(1);
+                document.getElementById('host-memory').textContent = formatBytes(cluster.logical_resources.host_memory_bytes);
+                document.getElementById('device-memory').textContent = formatBytes(cluster.logical_resources.device_memory_bytes);
+                document.getElementById('node-count').textContent = cluster.node_count;
+                document.getElementById('connection-status').textContent = 'Connected';
+                document.getElementById('connection-status').style.background = '#22c55e';
+            } catch (error) {
+                console.error('Failed to load cluster:', error);
+                document.getElementById('connection-status').textContent = 'Disconnected';
+                document.getElementById('connection-status').style.background = '#ef4444';
+            }
+        }
+        
+        async function loadNodes() {
+            try {
+                const nodes = await invoke('get_nodes');
+                const nodeList = document.getElementById('node-list');
+                
+                if (nodes.length === 0) {
+                    nodeList.innerHTML = '<div class="loading">No nodes connected</div>';
+                    return;
+                }
+                
+                nodeList.innerHTML = nodes.map(node => `
+                    <div class="node">
+                        <div class="node-info">
+                            <h3>${node.name}</h3>
+                            <p>${node.hostname} • ${node.capabilities.cpu_cores} cores • ${formatBytes(node.capabilities.memory_bytes)}</p>
+                        </div>
+                        <div class="node-status ${node.status.toLowerCase()}">${node.status}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load nodes:', error);
+            }
+        }
+        
+        async function loadModels() {
+            try {
+                const models = await invoke('get_models');
+                const modelList = document.getElementById('model-list');
+                
+                if (models.length === 0) {
+                    modelList.innerHTML = '<div class="loading">No models available</div>';
+                    return;
+                }
+                
+                modelList.innerHTML = models.map(model => `
+                    <div class="node">
+                        <div class="node-info">
+                            <h3>${model.id}</h3>
+                            <p>${model.owned_by}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load models:', error);
+            }
+        }
+        
+        // Load data on startup
+        loadCluster();
+        loadNodes();
+        loadModels();
+        
+        // Refresh every 5 seconds
+        setInterval(() => {
+            loadCluster();
+            loadNodes();
+        }, 5000);
+    </script>
+</body>
+</html>

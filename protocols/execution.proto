@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package cluster.execution;
+
+// Distributed execution service
+service DistributedExecution {
+  rpc Prefill(PrefillRequest) returns (PrefillResponse);
+  rpc Decode(stream DecodeMessage) returns (stream DecodeMessage);
+  rpc ExecuteStage(StageRequest) returns (StageResponse);
+  rpc CancelSession(CancelSessionRequest) returns (CancelSessionResponse);
+  rpc TransferTensor(stream TensorChunk) returns (TransferReceipt);
+}
+
+message PrefillRequest {
+  string session_id = 1;
+  string model_id = 2;
+  string prompt = 3;
+  uint32 max_tokens = 4;
+  map<string, string> parameters = 5;
+}
+
+message PrefillResponse {
+  bool success = 1;
+  uint32 tokens_processed = 2;
+  string initial_state_id = 3;
+  string error_message = 4;
+}
+
+message DecodeMessage {
+  oneof payload {
+    DecodeRequest request = 1;
+    DecodeResponse response = 2;
+  }
+}
+
+message DecodeRequest {
+  string session_id = 1;
+  string state_id = 2;
+  uint32 max_tokens = 3;
+}
+
+message DecodeResponse {
+  bool success = 1;
+  string token = 2;
+  bool finished = 3;
+  string new_state_id = 4;
+  string error_message = 5;
+}
+
+message StageRequest {
+  string session_id = 1;
+  uint32 stage_id = 2;
+  repeated TensorInput inputs = 3;
+  map<string, string> parameters = 4;
+}
+
+message StageResponse {
+  bool success = 1;
+  repeated TensorOutput outputs = 2;
+  string error_message = 3;
+}
+
+message CancelSessionRequest {
+  string session_id = 1;
+  string reason = 2;
+}
+
+message CancelSessionResponse {
+  bool cancelled = 1;
+}
+
+message TensorChunk {
+  string tensor_id = 1;
+  uint32 chunk_index = 2;
+  uint32 total_chunks = 3;
+  bytes data = 4;
+  string checksum = 5;
+}
+
+message TransferReceipt {
+  bool success = 1;
+  string tensor_id = 2;
+  uint64 bytes_received = 3;
+  string error_message = 4;
+}
+
+message TensorInput {
+  string tensor_id = 1;
+  string location = 2;
+  uint64 offset = 3;
+  uint64 length = 4;
+}
+
+message TensorOutput {
+  string tensor_id = 1;
+  bytes data = 2;
+  repeated uint64 shape = 3;
+  string dtype = 4;
+}

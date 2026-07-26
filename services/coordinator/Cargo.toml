@@ -1,0 +1,33 @@
+[package]
+name = "coordinator"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cluster-types = { path = "../../crates/cluster-types" }
+hardware-probe = { path = "../../crates/hardware-probe" }
+secure-pairing = { path = "../../crates/secure-pairing" }
+topology = { path = "../../crates/topology" }
+pipeline-executor = { path = "../pipeline-executor" }
+model-registry = { path = "../model-registry" }
+scheduler = { path = "../scheduler" }
+planner = { path = "../planner" }
+ggml-runtime = { path = "../../runtimes/ggml" }
+tokio = { workspace = true }
+tonic = { workspace = true }
+prost = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = { workspace = true }
+hex = "0.4"
+futures = "0.3"
+
+[build-dependencies]
+tonic-build = "0.12"
