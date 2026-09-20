@@ -74,7 +74,7 @@ impl TopologyProfiler {
     }
 
     /// Measure round-trip latency between two endpoints.
-    async fn measure_latency(from_addr: &str, to_addr: &str) -> Result<u32> {
+    async fn measure_latency(_from_addr: &str, to_addr: &str) -> Result<u32> {
         // Simplified latency measurement using UDP
         // In a real implementation, this would use proper ping or custom protocol
         

@@ -10,6 +10,7 @@ use cluster_types::{
 };
 use anyhow::Result;
 use std::collections::HashMap;
+use sysinfo::{SystemExt, CpuExt, DiskExt, NetworksExt};
 
 /// Hardware probe that detects system capabilities.
 pub struct HardwareProbe;
@@ -38,7 +39,7 @@ impl HardwareProbe {
         
         // Get CPU frequency (approximate from first CPU)
         let frequency_mhz = cpu.first()
-            .and_then(|c| c.frequency())
+            .map(|c: &sysinfo::Cpu| c.frequency())
             .unwrap_or(0);
 
         // Detect CPU architecture
@@ -58,7 +59,7 @@ impl HardwareProbe {
             architecture,
             cores,
             threads,
-            frequency_mhz,
+            frequency_mhz: frequency_mhz as u32,
             features,
             numa_nodes,
         })
@@ -127,7 +128,7 @@ impl HardwareProbe {
             gpus.push(GpuCapabilities {
                 id: format!("gpu:{}", i),
                 name,
-                vendor,
+                vendor: vendor.clone(),
                 vram_bytes,
                 compute_capability: None,
                 supports_peer_to_peer: false,
@@ -185,13 +186,13 @@ impl HardwareProbe {
         let mut sys = sysinfo::System::new_all();
         sys.refresh_all();
 
-        let interfaces = sys.networks()
+        let interfaces: Vec<NetworkInterface> = sys.networks()
             .iter()
-            .filter(|(_, iface)| !iface.name().contains("Loopback"))
-            .map(|(name, iface)| NetworkInterface {
+            .filter(|(name, _)| !name.contains("Loopback"))
+            .map(|(name, _)| NetworkInterface {
                 name: name.clone(),
-                ip_address: iface.ip().to_string(),
-                mac_address: iface.mac().to_string(),
+                ip_address: "".to_string(), // NetworkData in 0.28 is different
+                mac_address: "".to_string(),
                 bandwidth_mbps: 1000, // Default to 1 Gbps estimate
                 supports_rdma: false,
             })

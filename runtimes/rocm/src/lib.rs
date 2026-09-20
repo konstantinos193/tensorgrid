@@ -6,18 +6,16 @@ use cluster_types::{
     RuntimeBackend, TensorSpec, TensorHandle, ModelShardSpec, ShardHandle,
     StageExecution, StageOutput, TensorTransfer, TransferReceipt,
 };
-use model_format::GgufModel;
 use observability::{LogContext, MetricsCollector};
-use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 
 /// ROCm runtime adapter.
 pub struct RocmRuntime {
     backend: RuntimeBackend,
     metrics: MetricsCollector,
-    loaded_models: Vec<String>,
+    _loaded_models: Vec<String>,
     device_available: Arc<RwLock<bool>>,
     device_id: usize,
 }
@@ -36,7 +34,7 @@ impl RocmRuntime {
         Ok(Self {
             backend: RuntimeBackend::ROCm,
             metrics: MetricsCollector::new("rocm-runtime".to_string()),
-            loaded_models: Vec::new(),
+            _loaded_models: Vec::new(),
             device_available: Arc::new(RwLock::new(device_available)),
             device_id,
         })
@@ -104,7 +102,7 @@ impl RocmRuntime {
 
     /// Load a model shard.
     pub async fn load_shard(&self, spec: &ModelShardSpec) -> Result<ShardHandle, RocmError> {
-        let ctx = LogContext::new("load_shard")
+        let ctx = LogContext::new("load_shard".to_string())
             .with_model_id(spec.model_id.clone());
 
         info!("Loading ROCm shard: {}", spec.shard_id);
@@ -135,8 +133,8 @@ impl RocmRuntime {
 
     /// Allocate a tensor on GPU.
     pub async fn allocate_tensor(&self, spec: &TensorSpec) -> Result<TensorHandle, RocmError> {
-        let ctx = LogContext::new("allocate_tensor")
-            .with_tensor_id(spec.tensor_id.clone());
+        let ctx = LogContext::new("allocate_tensor".to_string())
+            .with_session_id(spec.tensor_id.clone());
 
         info!("Allocating ROCm tensor: {} ({} bytes)", spec.tensor_id, spec.bytes);
 
@@ -172,7 +170,7 @@ impl RocmRuntime {
 
     /// Execute a computation stage on GPU.
     pub async fn execute_stage(&self, request: StageExecution) -> Result<StageOutput, RocmError> {
-        let ctx = LogContext::new("execute_stage");
+        let ctx = LogContext::new("execute_stage".to_string());
 
         info!("Executing ROCm stage: {} with {} input tensors", request.stage_id, request.input_tensors.len());
 
@@ -216,8 +214,8 @@ impl RocmRuntime {
 
     /// Transfer a tensor between devices.
     pub async fn transfer_tensor(&self, request: TensorTransfer) -> Result<TransferReceipt, RocmError> {
-        let ctx = LogContext::new("transfer_tensor")
-            .with_tensor_id(request.tensor_id.clone());
+        let ctx = LogContext::new("transfer_tensor".to_string())
+            .with_session_id(request.tensor_id.clone());
 
         info!("Transferring tensor: {} from {} to {} ({} bytes)", 
             request.tensor_id, request.from_device, request.to_device, request.bytes);

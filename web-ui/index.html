@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TensorGrid - Web UI</title>
+    <title>TensorGrid - Distributed AI Cluster</title>
     <style>
         * {
             margin: 0;
@@ -11,278 +11,681 @@
             box-sizing: border-box;
         }
         
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #252540;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --border: #334155;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        header {
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #333;
             display: flex;
-            justify-content: space-between;
+        }
+        
+        .sidebar {
+            width: 260px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
             align-items: center;
-        }
-        
-        h1 {
-            font-size: 24px;
-        }
-        
-        .url-input {
-            display: flex;
             gap: 10px;
         }
         
-        .url-input input {
-            background: #252540;
-            border: 1px solid #444;
-            color: #eee;
-            padding: 8px 12px;
-            border-radius: 4px;
-            width: 300px;
-        }
-        
-        .url-input button {
-            background: #88c0d0;
-            color: #1a1a2e;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        
-        .section {
-            margin-bottom: 30px;
-        }
-        
-        h2 {
-            font-size: 18px;
-            margin-bottom: 15px;
-            color: #88c0d0;
-        }
-        
-        .card {
-            background: #252540;
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
             border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
         }
         
-        .metrics {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+        .nav {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
         }
         
-        .metric {
-            background: #1e1e38;
-            padding: 15px;
-            border-radius: 6px;
+        .nav-section {
+            margin-bottom: 24px;
         }
         
-        .metric-label {
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 5px;
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            padding-left: 12px;
         }
         
-        .metric-value {
-            font-size: 20px;
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .nav-item.active {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .nav-item-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
             font-weight: 600;
         }
         
-        .node-list {
-            display: grid;
-            gap: 10px;
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border);
         }
         
-        .node {
-            background: #1e1e38;
-            padding: 15px;
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
             border-radius: 6px;
+            font-size: 12px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+        
+        .status-dot.connected {
+            background: var(--success);
+        }
+        
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+        
+        .content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        .view {
+            display: none;
+        }
+        
+        .view.active {
+            display: block;
+        }
+        
+        .grid {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .grid-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .grid-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+        
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .stat-card {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .node-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .node-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         
-        .node-info h3 {
+        .node-name {
+            font-weight: 600;
             font-size: 14px;
-            margin-bottom: 5px;
-        }
-        
-        .node-info p {
-            font-size: 12px;
-            color: #888;
         }
         
         .node-status {
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
         }
         
         .node-status.healthy {
-            background: #22c55e;
-        }
-        
-        .node-status.suspect {
-            background: #eab308;
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
         }
         
         .node-status.offline {
-            background: #ef4444;
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+        
+        .node-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .node-stat {
+            background: var(--bg-tertiary);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        
+        .node-stat-label {
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+        
+        .node-stat-value {
+            font-weight: 600;
+        }
+        
+        .model-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .model-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .model-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
         }
         
         .chat-container {
-            background: #1e1e38;
-            border-radius: 8px;
-            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 180px);
         }
         
         .chat-messages {
-            max-height: 400px;
+            flex: 1;
             overflow-y: auto;
-            margin-bottom: 15px;
+            padding: 16px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 16px;
         }
         
         .message {
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 4px;
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 80%;
         }
         
         .message.user {
-            background: #3b82f6;
-            margin-left: 20%;
+            background: var(--accent);
+            margin-left: auto;
         }
         
         .message.assistant {
-            background: #10b981;
-            margin-right: 20%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+        }
+        
+        .chat-input-container {
+            display: flex;
+            gap: 12px;
         }
         
         .chat-input {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .chat-input input {
             flex: 1;
-            background: #252540;
-            border: 1px solid #444;
-            color: #eee;
-            padding: 10px;
-            border-radius: 4px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
         }
         
-        .chat-input button {
-            background: #88c0d0;
-            color: #1a1a2e;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent);
         }
         
-        .loading {
-            color: #888;
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
         }
         
-        .error {
-            color: #ef4444;
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
         }
         
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
+        .empty-state-text {
+            font-size: 16px;
+            margin-bottom: 8px;
         }
         
-        .status-indicator.connected {
-            background: #22c55e;
+        .empty-state-subtext {
+            font-size: 14px;
         }
         
-        .status-indicator.disconnected {
-            background: #ef4444;
+        @media (max-width: 1024px) {
+            .grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div>
-                <h1>TensorGrid</h1>
-                <span id="connection-status">
-                    <span class="status-indicator disconnected"></span>
-                    <span id="status-text">Disconnected</span>
-                </span>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">TG</div>
+                TensorGrid
             </div>
-            <div class="url-input">
-                <input type="text" id="coordinator-url" value="http://[::1]:8080" placeholder="Coordinator URL">
-                <button onclick="setCoordinatorUrl()">Connect</button>
-            </div>
-        </header>
+        </div>
         
-        <div class="section">
-            <h2>Cluster Overview</h2>
-            <div class="card">
-                <div class="metrics" id="cluster-metrics">
-                    <div class="metric">
-                        <div class="metric-label">CPU Units</div>
-                        <div class="metric-value" id="cpu-units">-</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-label">Host Memory</div>
-                        <div class="metric-value" id="host-memory">-</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-label">Device Memory</div>
-                        <div class="metric-value" id="device-memory">-</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-label">Nodes</div>
-                        <div class="metric-value" id="node-count">-</div>
-                    </div>
+        <div class="nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Main</div>
+                <div class="nav-item active" data-view="dashboard">
+                    <div class="nav-item-icon">D</div>
+                    Dashboard
+                </div>
+                <div class="nav-item" data-view="models">
+                    <div class="nav-item-icon">M</div>
+                    Models
+                </div>
+                <div class="nav-item" data-view="chat">
+                    <div class="nav-item-icon">C</div>
+                    Chat
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">Cluster</div>
+                <div class="nav-item" data-view="nodes">
+                    <div class="nav-item-icon">N</div>
+                    Nodes
+                </div>
+                <div class="nav-item" data-view="monitoring">
+                    <div class="nav-item-icon">G</div>
+                    Monitoring
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">System</div>
+                <div class="nav-item" data-view="settings">
+                    <div class="nav-item-icon">S</div>
+                    Settings
                 </div>
             </div>
         </div>
         
-        <div class="section">
-            <h2>Connected Nodes</h2>
-            <div class="node-list" id="node-list">
-                <div class="loading">Loading nodes...</div>
+        <div class="sidebar-footer">
+            <div class="connection-status">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Disconnected</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <div class="header-title" id="page-title">Dashboard</div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="refreshData()">Refresh</button>
+                <button class="btn btn-primary" onclick="showSettings()">Settings</button>
             </div>
         </div>
         
-        <div class="section">
-            <h2>Chat</h2>
-            <div class="chat-container">
-                <div class="chat-messages" id="chat-messages">
-                    <div class="message assistant">
-                        <p>Hello! I'm ready to help. Send me a message to start chatting.</p>
+        <div class="content">
+            <!-- Dashboard View -->
+            <div class="view active" id="dashboard-view">
+                <div class="grid grid-4" style="margin-bottom: 24px;">
+                    <div class="card stat-card">
+                        <div class="stat-value" id="stat-nodes">0</div>
+                        <div class="stat-label">Active Nodes</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-value" id="stat-cpu">0</div>
+                        <div class="stat-label">CPU Units</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-value" id="stat-memory">0 GB</div>
+                        <div class="stat-label">Total Memory</div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-value" id="stat-models">0</div>
+                        <div class="stat-label">Loaded Models</div>
                     </div>
                 </div>
-                <div class="chat-input">
-                    <input type="text" id="chat-input" placeholder="Type your message..." onkeypress="if(event.key === 'Enter') sendMessage()">
-                    <button onclick="sendMessage()">Send</button>
+                
+                <div class="grid grid-2">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Cluster Overview</div>
+                        </div>
+                        <div id="cluster-overview">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">+</div>
+                                <div class="empty-state-text">Not connected to cluster</div>
+                                <div class="empty-state-subtext">Configure coordinator URL in settings</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Recent Activity</div>
+                        </div>
+                        <div id="activity-log">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">-</div>
+                                <div class="empty-state-text">No recent activity</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Models View -->
+            <div class="view" id="models-view">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Available Models</div>
+                        <button class="btn btn-primary">Add Model</button>
+                    </div>
+                    <div class="grid grid-3" id="models-grid">
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">M</div>
+                            <div class="empty-state-text">No models loaded</div>
+                            <div class="empty-state-subtext">Add models to get started</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat View -->
+            <div class="view" id="chat-view">
+                <div class="card chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="message assistant">
+                            <p>Welcome to TensorGrid! I'm ready to help you with your distributed AI cluster. What would you like to do today?</p>
+                        </div>
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" class="chat-input" id="chat-input" placeholder="Type your message..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                        <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Nodes View -->
+            <div class="view" id="nodes-view">
+                <div class="grid grid-3" id="nodes-grid">
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state-icon">N</div>
+                        <div class="empty-state-text">No nodes connected</div>
+                        <div class="empty-state-subtext">Nodes will appear here when they join the cluster</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Monitoring View -->
+            <div class="view" id="monitoring-view">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">System Metrics</div>
+                    </div>
+                    <div class="empty-state">
+                        <div class="empty-state-icon">G</div>
+                        <div class="empty-state-text">Monitoring coming soon</div>
+                        <div class="empty-state-subtext">Real-time metrics and performance monitoring</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings View -->
+            <div class="view" id="settings-view">
+                <div class="card" style="max-width: 600px;">
+                    <div class="card-header">
+                        <div class="card-title">Configuration</div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500;">Coordinator URL</label>
+                            <input type="text" id="coordinator-url" value="http://localhost:8080" style="width: 100%; padding: 10px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary);">
+                        </div>
+                        <button class="btn btn-primary" onclick="saveSettings()">Save Configuration</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
     <script>
-        let coordinatorUrl = 'http://[::1]:8080';
+        let coordinatorUrl = 'http://localhost:8080';
+        let currentView = 'dashboard';
+        
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const view = item.dataset.view;
+                if (view) {
+                    switchView(view);
+                }
+            });
+        });
+        
+        function switchView(view) {
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.view === view) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Update views
+            document.querySelectorAll('.view').forEach(v => {
+                v.classList.remove('active');
+            });
+            document.getElementById(`${view}-view`).classList.add('active');
+            
+            // Update title
+            const titles = {
+                dashboard: 'Dashboard',
+                models: 'Models',
+                chat: 'Chat',
+                nodes: 'Nodes',
+                monitoring: 'Monitoring',
+                settings: 'Settings'
+            };
+            document.getElementById('page-title').textContent = titles[view] || 'Dashboard';
+            
+            currentView = view;
+            
+            // Load data for specific views
+            if (view === 'nodes') loadNodes();
+            if (view === 'models') loadModels();
+        }
+        
+        function showSettings() {
+            switchView('settings');
+        }
         
         function formatBytes(bytes) {
             if (bytes === 0) return '0 B';
@@ -292,10 +695,16 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
         
-        function setCoordinatorUrl() {
+        function saveSettings() {
             coordinatorUrl = document.getElementById('coordinator-url').value;
+            refreshData();
+            alert('Settings saved!');
+        }
+        
+        function refreshData() {
             loadCluster();
             loadNodes();
+            loadModels();
         }
         
         async function loadCluster() {
@@ -303,16 +712,33 @@
                 const response = await fetch(`${coordinatorUrl}/api/cluster`);
                 const cluster = await response.json();
                 
-                document.getElementById('cpu-units').textContent = cluster.logical_resources.cpu_compute_units.toFixed(1);
-                document.getElementById('host-memory').textContent = formatBytes(cluster.logical_resources.host_memory_bytes);
-                document.getElementById('device-memory').textContent = formatBytes(cluster.logical_resources.device_memory_bytes);
-                document.getElementById('node-count').textContent = cluster.node_count;
+                document.getElementById('stat-nodes').textContent = cluster.node_count;
+                document.getElementById('stat-cpu').textContent = cluster.logical_resources.cpu_compute_units.toFixed(1);
+                document.getElementById('stat-memory').textContent = formatBytes(cluster.logical_resources.host_memory_bytes).replace('B', '').trim();
                 
-                document.querySelector('.status-indicator').className = 'status-indicator connected';
+                document.getElementById('status-dot').classList.add('connected');
                 document.getElementById('status-text').textContent = 'Connected';
+                
+                // Update cluster overview
+                document.getElementById('cluster-overview').innerHTML = `
+                    <div style="display: grid; gap: 12px;">
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span style="color: var(--text-secondary);">Cluster ID</span>
+                            <span>${cluster.id}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span style="color: var(--text-secondary);">Name</span>
+                            <span>${cluster.name}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <span style="color: var(--text-secondary);">Parallelism</span>
+                            <span>${cluster.logical_resources.preferred_parallelism}</span>
+                        </div>
+                    </div>
+                `;
             } catch (error) {
                 console.error('Failed to load cluster:', error);
-                document.querySelector('.status-indicator').className = 'status-indicator disconnected';
+                document.getElementById('status-dot').classList.remove('connected');
                 document.getElementById('status-text').textContent = 'Disconnected';
             }
         }
@@ -322,24 +748,80 @@
                 const response = await fetch(`${coordinatorUrl}/api/cluster/nodes`);
                 const data = await response.json();
                 const nodes = data.nodes || [];
-                const nodeList = document.getElementById('node-list');
+                const nodesGrid = document.getElementById('nodes-grid');
                 
                 if (nodes.length === 0) {
-                    nodeList.innerHTML = '<div class="loading">No nodes connected</div>';
+                    nodesGrid.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">🖥️</div>
+                            <div class="empty-state-text">No nodes connected</div>
+                            <div class="empty-state-subtext">Nodes will appear here when they join the cluster</div>
+                        </div>
+                    `;
                     return;
                 }
                 
-                nodeList.innerHTML = nodes.map(node => `
-                    <div class="node">
-                        <div class="node-info">
-                            <h3>${node.name}</h3>
-                            <p>${node.hostname} • ${node.capabilities.cpu_cores} cores • ${formatBytes(node.capabilities.memory_bytes)}</p>
+                nodesGrid.innerHTML = nodes.map(node => `
+                    <div class="card node-card">
+                        <div class="node-header">
+                            <div class="node-name">${node.name}</div>
+                            <div class="node-status ${node.status.toLowerCase()}">${node.status}</div>
                         </div>
-                        <div class="node-status ${node.status.toLowerCase()}">${node.status}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">${node.hostname}</div>
+                        <div class="node-stats">
+                            <div class="node-stat">
+                                <div class="node-stat-label">CPU Cores</div>
+                                <div class="node-stat-value">${node.capabilities.cpu_cores}</div>
+                            </div>
+                            <div class="node-stat">
+                                <div class="node-stat-label">Memory</div>
+                                <div class="node-stat-value">${formatBytes(node.capabilities.memory_bytes)}</div>
+                            </div>
+                            <div class="node-stat">
+                                <div class="node-stat-label">GPU Count</div>
+                                <div class="node-stat-value">${node.capabilities.gpu_count}</div>
+                            </div>
+                            <div class="node-stat">
+                                <div class="node-stat-label">CPU Usage</div>
+                                <div class="node-stat-value">${node.resources.cpu_usage_percent.toFixed(1)}%</div>
+                            </div>
+                        </div>
                     </div>
                 `).join('');
             } catch (error) {
                 console.error('Failed to load nodes:', error);
+            }
+        }
+        
+        async function loadModels() {
+            try {
+                const response = await fetch(`${coordinatorUrl}/api/v1/models`);
+                const data = await response.json();
+                const models = data.data || [];
+                const modelsGrid = document.getElementById('models-grid');
+                
+                document.getElementById('stat-models').textContent = models.length;
+                
+                if (models.length === 0) {
+                    modelsGrid.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="empty-state-icon">🤖</div>
+                            <div class="empty-state-text">No models loaded</div>
+                            <div class="empty-state-subtext">Add models to get started</div>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                modelsGrid.innerHTML = models.map(model => `
+                    <div class="card model-card">
+                        <div class="model-name">${model.id}</div>
+                        <div class="model-meta">${model.owned_by}</div>
+                        <div class="model-meta">Created: ${new Date(model.created * 1000).toLocaleDateString()}</div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load models:', error);
             }
         }
         
@@ -351,7 +833,6 @@
             
             const messagesDiv = document.getElementById('chat-messages');
             
-            // Add user message
             messagesDiv.innerHTML += `
                 <div class="message user">
                     <p>${message}</p>
@@ -372,7 +853,7 @@
                         messages: [
                             { role: 'user', content: message }
                         ],
-                        max_tokens: 100,
+                        max_tokens: 500,
                         temperature: 0.7,
                     }),
                 });
@@ -382,7 +863,7 @@
                 if (data.error) {
                     messagesDiv.innerHTML += `
                         <div class="message assistant">
-                            <p>Error: ${data.error.message}</p>
+                            <p>Error: ${data.error.message || 'Unknown error'}</p>
                         </div>
                     `;
                 } else {
@@ -399,22 +880,24 @@
                 console.error('Failed to send message:', error);
                 messagesDiv.innerHTML += `
                     <div class="message assistant">
-                        <p>Error: Failed to connect to coordinator</p>
+                        <p>Error: Failed to connect to coordinator. Make sure the coordinator is running and the URL is correct.</p>
                     </div>
                 `;
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
         }
         
-        // Load data on startup
+        // Initial load
         loadCluster();
         loadNodes();
+        loadModels();
         
-        // Refresh every 5 seconds
+        // Auto-refresh every 10 seconds
         setInterval(() => {
             loadCluster();
-            loadNodes();
-        }, 5000);
+            if (currentView === 'nodes') loadNodes();
+            if (currentView === 'models') loadModels();
+        }, 10000);
     </script>
 </body>
 </html>

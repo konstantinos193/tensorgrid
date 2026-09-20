@@ -4,20 +4,17 @@
 //! model planning, and exposes the API/UI endpoints.
 
 use cluster_types::{ClusterId, NodeId, PhysicalNode, NodeStatus, LogicalCluster};
-use secure_pairing::{PairingManager, PairingRequest, PairingChallenge, PairingResponse};
+use secure_pairing::PairingManager;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tonic::transport::Server;
 use tracing::{info, error, warn};
 use uuid::Uuid;
 
-mod node_control;
 mod api;
 mod planner;
 
-use node_control::NodeControlService;
 use api::ApiServer;
 
 /// Cluster state managed by the coordinator.
@@ -96,7 +93,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting Cluster Coordinator");
 
     let state = ClusterState::new();
-    let node_control = NodeControlService::new(state.clone());
     let api_server = ApiServer::new(state.clone());
 
     // Start heartbeat monitoring for node failure detection
@@ -105,28 +101,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         heartbeat_monitor(state_for_monitor).await;
     });
 
-    // Start gRPC server for node control
-    let addr = "[::1]:50051".parse()?;
-    let node_control_server = Server::builder()
-        .add_service(node_control.into_server())
-        .serve(addr);
-
-    info!("Node control server listening on {}", addr);
-
-    // Start API server (HTTP/REST)
-    let api_addr = "[::1]:8080".parse()?;
-    let api_handle = tokio::spawn(async move {
-        if let Err(e) = api_server.serve(api_addr).await {
-            error!("API server error: {}", e);
-        }
-    });
-
-    // Run gRPC server
-    if let Err(e) = node_control_server.await {
-        error!("gRPC server error: {}", e);
+    // Start API server (HTTP/REST) only
+    let api_addr = "0.0.0.0:8080".parse()?;
+    info!("API server listening on {}", api_addr);
+    
+    if let Err(e) = api_server.serve(api_addr).await {
+        error!("API server error: {}", e);
     }
-
-    api_handle.await??;
 
     Ok(())
 }
@@ -152,11 +133,11 @@ async fn heartbeat_monitor(state: ClusterState) {
                 node.status = NodeStatus::Suspect;
             }
             
-            // Mark node as offline if no heartbeat for 30 seconds
+            // Mark node as unavailable if no heartbeat for 30 seconds
             if time_since_heartbeat.num_seconds() > 30 {
-                warn!("Node {} has not sent heartbeat for {}s, marking as offline", 
+                warn!("Node {} has not sent heartbeat for {}s, marking as unavailable", 
                     node_id, time_since_heartbeat.num_seconds());
-                node.status = NodeStatus::Offline;
+                node.status = NodeStatus::Unavailable;
                 nodes_to_remove.push(*node_id);
             }
         }

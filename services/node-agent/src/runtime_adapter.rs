@@ -1,6 +1,6 @@
 //! Runtime adapter for different inference backends.
 
-use cluster_types::{RuntimeBackend, TensorSpec, TensorHandle, ModelShardSpec, ShardHandle};
+use cluster_types::{RuntimeBackend, TensorSpec, ModelShardSpec};
 use anyhow::Result;
 
 /// Adapter for runtime backends (GGML, CUDA, etc.).
@@ -25,18 +25,18 @@ impl RuntimeAdapter {
     }
 
     /// Load a model shard.
-    pub async fn load_shard(&self, _spec: &ModelShardSpec) -> Result<ShardHandle> {
+    pub async fn load_shard(&self, _spec: &ModelShardSpec) -> Result<cluster_types::ShardHandle> {
         // Placeholder implementation
-        Ok(ShardHandle {
+        Ok(cluster_types::ShardHandle {
             shard_id: 0,
             backend: self.backend.clone(),
         })
     }
 
     /// Allocate a tensor.
-    pub async fn allocate_tensor(&self, _spec: &TensorSpec) -> Result<TensorHandle> {
+    pub async fn allocate_tensor(&self, _spec: &TensorSpec) -> Result<cluster_types::TensorHandle> {
         // Placeholder implementation
-        Ok(TensorHandle {
+        Ok(cluster_types::TensorHandle {
             tensor_id: "placeholder".to_string(),
             device: "cpu".to_string(),
             offset: 0,
@@ -51,20 +51,4 @@ pub struct RuntimeCapabilities {
     pub backend: RuntimeBackend,
     pub supported_dtypes: Vec<String>,
     pub max_tensor_size: u64,
-}
-
-/// Handle for a loaded model shard.
-#[derive(Clone, Debug)]
-pub struct ShardHandle {
-    pub shard_id: u32,
-    pub backend: RuntimeBackend,
-}
-
-/// Handle for an allocated tensor.
-#[derive(Clone, Debug)]
-pub struct TensorHandle {
-    pub tensor_id: String,
-    pub device: String,
-    pub offset: u64,
-    pub size: u64,
 }

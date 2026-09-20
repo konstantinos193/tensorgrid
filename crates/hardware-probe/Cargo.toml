@@ -8,7 +8,7 @@ cluster-types = { path = "../cluster-types" }
 serde = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-sysinfo = "0.30"
+sysinfo = "0.28"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 nvidia = { package = "nvidia", version = "0.1", optional = true }

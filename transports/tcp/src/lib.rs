@@ -135,8 +135,8 @@ impl TcpTransport {
         stream: &mut TcpStream,
         header: &MessageHeader,
     ) -> Result<(), TcpError> {
-        let ctx = LogContext::new("handle_tensor_transfer")
-            .with_tensor_id(header.tensor_id.clone());
+        let ctx = LogContext::new("handle_tensor_transfer".to_string())
+            .with_session_id(header.tensor_id.clone());
 
         info!("Receiving tensor: {} ({} bytes)", header.tensor_id, header.payload_length);
 

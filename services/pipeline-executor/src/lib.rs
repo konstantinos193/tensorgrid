@@ -3,13 +3,12 @@
 //! Coordinates distributed execution of models across multiple nodes using
 //! pipeline parallelism.
 
-use cluster_types::{NodeId, SessionId, ExecutionPlan, StagePlan, TensorHandle};
+use cluster_types::{NodeId, SessionId, ExecutionPlan};
 use observability::{LogContext, MetricsCollector};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{mpsc, RwLock};
-use uuid::Uuid;
-use tracing::{info, warn, error};
+use tokio::sync::RwLock;
+use tracing::info;
 
 /// Pipeline executor state.
 pub struct PipelineExecutor {
@@ -39,7 +38,7 @@ struct StageState {
 
 /// Session status.
 #[derive(Debug, Clone, PartialEq)]
-enum SessionStatus {
+pub enum SessionStatus {
     Initializing,
     Running,
     Paused,
@@ -89,7 +88,7 @@ impl PipelineExecutor {
         session_id: SessionId,
         plan: ExecutionPlan,
     ) -> Result<(), PipelineError> {
-        let ctx = LogContext::new("initialize_session")
+        let ctx = LogContext::new("initialize_session".to_string())
             .with_session_id(session_id.to_string());
 
         info!("Initializing session {} with {} stages", session_id, plan.stages.len());
@@ -125,7 +124,7 @@ impl PipelineExecutor {
 
     /// Execute a request on a session.
     pub async fn execute(&self, request: ExecutionRequest) -> Result<ExecutionResult, PipelineError> {
-        let ctx = LogContext::new("execute")
+        let ctx = LogContext::new("execute".to_string())
             .with_session_id(request.session_id.to_string());
 
         info!("Executing request on session {} ({} input tokens)", 
@@ -177,7 +176,7 @@ impl PipelineExecutor {
         };
 
         self.metrics.record_histogram("execution_time_ms", duration.as_secs_f64(), &[]);
-        self.metrics.record_gauge("tokens_per_second", tokens_per_second, &[]);
+        self.metrics.record_gauge("tokens_per_second", tokens_per_second.into(), &[]);
         ctx.info(&format!("Execution completed in {}ms ({} tokens/s)", 
             duration.as_millis(), tokens_per_second));
 
@@ -269,7 +268,7 @@ impl PipelineExecutor {
     pub async fn cancel_session(&self, session_id: SessionId) -> Result<(), PipelineError> {
         let mut sessions = self.active_sessions.write().await;
         
-        if let Some(session) = sessions.remove(&session_id) {
+        if let Some(_session) = sessions.remove(&session_id) {
             info!("Session {} cancelled", session_id);
             self.metrics.increment_counter("sessions_cancelled", 1, &[]);
             Ok(())

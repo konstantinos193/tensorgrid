@@ -139,8 +139,8 @@ async fn test_node_status_transitions() {
     status = NodeStatus::Draining;
     assert_eq!(status, NodeStatus::Draining);
     
-    status = NodeStatus::Offline;
-    assert_eq!(status, NodeStatus::Offline);
+    status = NodeStatus::Unavailable;
+    assert_eq!(status, NodeStatus::Unavailable);
     
     info!("Node status transitions test passed");
 }

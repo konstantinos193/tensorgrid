@@ -74,7 +74,7 @@ pub struct GpuCapabilities {
 }
 
 /// GPU vendor.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum GpuVendor {
     Nvidia,
     Amd,
@@ -181,7 +181,7 @@ pub struct Schedule {
 }
 
 /// Current status of a node.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum NodeStatus {
     Healthy,
     Suspect,
@@ -349,6 +349,54 @@ pub struct TensorSpec {
     pub shape: Vec<usize>,
     pub dtype: String,
     pub bytes: u64,
+}
+
+/// Handle to a tensor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TensorHandle {
+    pub tensor_id: TensorId,
+    pub device: String,
+    pub offset: u64,
+    pub size: u64,
+}
+
+/// Handle to a model shard.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShardHandle {
+    pub shard_id: u32,
+    pub backend: RuntimeBackend,
+}
+
+/// Stage execution request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StageExecution {
+    pub stage_id: u32,
+    pub input_tensors: Vec<TensorHandle>,
+}
+
+/// Stage execution output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StageOutput {
+    pub stage_id: u32,
+    pub output_tensors: Vec<TensorHandle>,
+    pub execution_time_ms: u32,
+}
+
+/// Tensor transfer request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TensorTransfer {
+    pub tensor_id: TensorId,
+    pub from_device: String,
+    pub to_device: String,
+    pub bytes: u64,
+}
+
+/// Tensor transfer receipt.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransferReceipt {
+    pub tensor_id: TensorId,
+    pub bytes_transferred: u64,
+    pub transfer_time_ms: u32,
 }
 
 /// Error types for cluster operations.

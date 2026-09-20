@@ -2,8 +2,8 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "devPath": "../ui",
-    "distDir": "../ui",
+    "devPath": "http://localhost:1420",
+    "distDir": "../web-ui",
     "withGlobalTauri": false
   },
   "package": {
@@ -26,7 +26,7 @@
         "depends": []
       },
       "externalBin": [],
-      "icon": [],
+      "icon": ["icons/icon.png"],
       "identifier": "com.tensorgrid.desktop",
       "longDescription": "",
       "macOS": {
@@ -38,11 +38,16 @@
       },
       "resources": [],
       "shortDescription": "",
-      "targets": "all",
+      "targets": [],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
+        "timestampUrl": "",
+        "webviewInstallMode": {
+          "type": "embedBootstrapper"
+        },
+        "wix": null,
+        "nsis": null
       }
     },
     "security": {

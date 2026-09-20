@@ -1,12 +1,6 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_build::configure()
-        .build_server(true)
-        .build_client(false)
-        .out_dir("src/proto")
-        .compile(
-            &["../../protocols/control.proto"],
-            &["../../protocols"],
-        )?;
-    println!("cargo:rerun-if-changed=../../protocols/control.proto");
+    // Skip proto compilation for now - coordinator will use HTTP-only API
+    // This is a temporary workaround for development without protoc
+    println!("cargo:warning=Skipping proto compilation - using HTTP-only coordinator");
     Ok(())
 }

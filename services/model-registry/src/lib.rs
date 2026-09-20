@@ -3,15 +3,13 @@
 //! Manages model metadata, caching, and distribution across the cluster.
 
 use cluster_types::{ModelId, NodeId};
-use model_format::GgufModel;
 use observability::{LogContext, MetricsCollector};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 
 /// Model metadata stored in the registry.
 #[derive(Debug, Clone)]
@@ -57,7 +55,7 @@ impl ModelRegistry {
         name: String,
     ) -> Result<ModelMetadata, Box<dyn std::error::Error>> {
         let file_path = file_path.as_ref();
-        let ctx = LogContext::new("register_model");
+        let ctx = LogContext::new("register_model".to_string());
 
         // Parse the model file
         let gguf_model = model_format::GgufParser::parse(file_path)?;
@@ -139,7 +137,7 @@ impl ModelRegistry {
             }
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Model not found: {}", model_id))
+            Err(anyhow::anyhow!("Model not found: {}", model_id).into())
         }
     }
 
@@ -151,7 +149,7 @@ impl ModelRegistry {
             metadata.cached_nodes.retain(|n| n != &node_id);
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Model not found: {}", model_id))
+            Err(anyhow::anyhow!("Model not found: {}", model_id).into())
         }
     }
 
@@ -211,7 +209,7 @@ impl ModelRegistry {
             info!("Model unregistered: {}", model_id);
             Ok(())
         } else {
-            Err(anyhow::anyhow!("Model not found: {}", model_id))
+            Err(anyhow::anyhow!("Model not found: {}", model_id).into())
         }
     }
 

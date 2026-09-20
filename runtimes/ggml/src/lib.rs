@@ -11,7 +11,7 @@ use observability::{LogContext, MetricsCollector};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::info;
 use tokenizers::Tokenizer;
 
 /// GGML runtime adapter.
@@ -34,11 +34,11 @@ impl GgmlRuntime {
 
     /// Load a tokenizer from a model file or separate tokenizer file.
     pub async fn load_tokenizer<P: AsRef<Path>>(&self, tokenizer_path: P) -> Result<(), GgmlError> {
-        let ctx = LogContext::new("load_tokenizer");
+        let ctx = LogContext::new("load_tokenizer".to_string());
 
         info!("Loading tokenizer from: {}", tokenizer_path.as_ref().display());
 
-        let tokenizer = Tokenizer::from_file(tokenizer_path, None)
+        let tokenizer = Tokenizer::from_file(tokenizer_path)
             .map_err(|e| GgmlError::TokenizerLoadFailed(e.to_string()))?;
 
         let mut tokenizer_ref = self.tokenizer.write().await;
@@ -105,7 +105,7 @@ impl GgmlRuntime {
 
     /// Load a model shard.
     pub async fn load_shard(&self, spec: &ModelShardSpec) -> Result<ShardHandle, GgmlError> {
-        let ctx = LogContext::new("load_shard")
+        let ctx = LogContext::new("load_shard".to_string())
             .with_model_id(spec.model_id.clone());
 
         info!("Loading GGML shard: {}", spec.shard_id);
@@ -138,8 +138,7 @@ impl GgmlRuntime {
 
     /// Allocate a tensor.
     pub async fn allocate_tensor(&self, spec: &TensorSpec) -> Result<TensorHandle, GgmlError> {
-        let ctx = LogContext::new("allocate_tensor")
-            .with_tensor_id(spec.tensor_id.clone());
+        let ctx = LogContext::new("allocate_tensor".to_string());
 
         info!("Allocating tensor: {} ({} bytes)", spec.tensor_id, spec.bytes);
 
@@ -171,7 +170,7 @@ impl GgmlRuntime {
 
         let handle = TensorHandle {
             tensor_id: spec.tensor_id.clone(),
-            device,
+            device: device.clone(),
             offset: 0,
             size: spec.bytes,
         };
@@ -184,7 +183,7 @@ impl GgmlRuntime {
 
     /// Execute a computation stage.
     pub async fn execute_stage(&self, request: StageExecution) -> Result<StageOutput, GgmlError> {
-        let ctx = LogContext::new("execute_stage");
+        let ctx = LogContext::new("execute_stage".to_string());
 
         info!("Executing stage: {} with {} input tensors", request.stage_id, request.input_tensors.len());
 
@@ -229,8 +228,7 @@ impl GgmlRuntime {
 
     /// Transfer a tensor between devices/nodes.
     pub async fn transfer_tensor(&self, request: TensorTransfer) -> Result<TransferReceipt, GgmlError> {
-        let ctx = LogContext::new("transfer_tensor")
-            .with_tensor_id(request.tensor_id.clone());
+        let ctx = LogContext::new("transfer_tensor".to_string());
 
         info!("Transferring tensor: {} from {} to {} ({} bytes)", 
             request.tensor_id, request.from_device, request.to_device, request.bytes);
@@ -300,7 +298,7 @@ impl GgmlRuntime {
     }
 
     /// Load a GGUF model file.
-    pub async fn load_gguf<P: AsRef<Path>>(&self, path: P) -> Result<GgufModel, GgmlError> {
+    pub async fn load_gguf<P: AsRef<Path>>(&mut self, path: P) -> Result<GgufModel, GgmlError> {
         let path = path.as_ref();
         
         info!("Loading GGUF model from: {}", path.display());
@@ -324,39 +322,6 @@ pub struct RuntimeCapabilities {
     pub supports_gpu: bool,
     pub supports_cpu: bool,
     pub supports_multi_gpu: bool,
-}
-
-/// Stage execution request.
-#[derive(Debug, Clone)]
-pub struct StageExecution {
-    pub stage_id: u32,
-    pub input_tensors: Vec<TensorHandle>,
-    pub parameters: std::collections::HashMap<String, String>,
-}
-
-/// Stage execution output.
-#[derive(Debug, Clone)]
-pub struct StageOutput {
-    pub stage_id: u32,
-    pub output_tensors: Vec<TensorHandle>,
-    pub execution_time_ms: u32,
-}
-
-/// Tensor transfer request.
-#[derive(Debug, Clone)]
-pub struct TensorTransfer {
-    pub tensor_id: String,
-    pub from_device: String,
-    pub to_device: String,
-    pub bytes: u64,
-}
-
-/// Transfer receipt.
-#[derive(Debug, Clone)]
-pub struct TransferReceipt {
-    pub tensor_id: String,
-    pub bytes_transferred: u64,
-    pub transfer_time_ms: u32,
 }
 
 /// Runtime metrics.

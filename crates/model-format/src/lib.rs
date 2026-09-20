@@ -158,8 +158,9 @@ impl GgufParser {
         model.metadata
             .get("general.architecture")
             .and_then(|v| v.as_string())
+            .map(|s| s.to_string())
     }
-    
+      
     /// Extract model parameter count from metadata.
     pub fn get_parameter_count(model: &GgufModel) -> Option<u64> {
         model.metadata

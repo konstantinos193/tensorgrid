@@ -5,8 +5,9 @@
 
 use cluster_types::{ClusterId, NodeId};
 use anyhow::Result;
-use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signature, Signer, Verifier};
-use rand::rngs::OsRng;
+use ed25519_dalek::{Keypair, PublicKey, Signature, Signer, Verifier};
+use rand_core::OsRng;
+use rand_core::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -23,7 +24,6 @@ pub struct PairingManager {
 /// Pending pairing challenge.
 #[derive(Clone)]
 struct PendingChallenge {
-    node_id: NodeId,
     challenge: [u8; 32],
     timestamp: chrono::DateTime<chrono::Utc>,
     expires_in_seconds: u64,
@@ -77,8 +77,9 @@ pub struct PairingResponse {
 impl PairingManager {
     /// Create a new pairing manager for the coordinator.
     pub fn new_coordinator(cluster_id: ClusterId) -> Result<Self> {
-        let coordinator_key = Keypair::generate(&mut OsRng);
-        
+        let mut rng = OsRng {};
+        let coordinator_key = Keypair::generate(&mut rng);
+
         Ok(Self {
             cluster_id,
             pending_challenges: HashMap::new(),
@@ -89,8 +90,9 @@ impl PairingManager {
 
     /// Create a new pairing manager for a node.
     pub fn new_node(cluster_id: ClusterId) -> Result<Self> {
-        let node_key = Keypair::generate(&mut OsRng);
-        
+        let mut rng = OsRng {};
+        let node_key = Keypair::generate(&mut rng);
+
         Ok(Self {
             cluster_id,
             pending_challenges: HashMap::new(),
@@ -100,13 +102,13 @@ impl PairingManager {
     }
 
     /// Generate a pairing challenge for a new node.
-    pub fn generate_challenge(&mut self, request: &PairingRequest) -> Result<PairingChallenge> {
+    pub fn generate_challenge(&mut self, _request: &PairingRequest) -> Result<PairingChallenge> {
         let node_id = Uuid::new_v4();
         let mut challenge = [0u8; 32];
-        rand::rngs::OsRng.fill_bytes(&mut challenge);
+        let mut rng = OsRng {};
+        rng.fill_bytes(&mut challenge);
 
         let pending = PendingChallenge {
-            node_id,
             challenge,
             timestamp: chrono::Utc::now(),
             expires_in_seconds: 300, // 5 minutes
@@ -142,8 +144,14 @@ impl PairingManager {
 
         // Verify the challenge response (node signed the challenge)
         let public_key = PublicKey::from_bytes(node_public_key)?;
-        let signature = Signature::from_bytes(&response.challenge_signature)?;
-        
+
+        let sig_bytes: [u8; 64] = response.challenge_signature
+            .as_slice()
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid signature length"))?;
+        let signature = Signature::from_bytes(&sig_bytes)
+            .map_err(|_| anyhow::anyhow!("Invalid signature"))?;
+
         public_key.verify(&pending.challenge, &signature)?;
 
         // Issue device certificate
@@ -201,8 +209,13 @@ impl PairingManager {
         coordinator_public_key: &[u8],
     ) -> Result<bool> {
         let public_key = PublicKey::from_bytes(coordinator_public_key)?;
-        let sig = Signature::from_bytes(signature)?;
-        
+
+        let sig_bytes: [u8; 64] = signature
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid signature length"))?;
+        let sig = Signature::from_bytes(&sig_bytes)
+            .map_err(|_| anyhow::anyhow!("Invalid signature"))?;
+
         match public_key.verify(data, &sig) {
             Ok(()) => Ok(true),
             Err(_) => Ok(false),

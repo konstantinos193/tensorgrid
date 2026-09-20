@@ -57,7 +57,7 @@ impl TensorDirectory {
         owner_session: Option<Uuid>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let ctx = LogContext::new("register_tensor")
-            .with_tensor_id(tensor_id.clone());
+            .with_session_id(tensor_id.clone());
 
         let entry = TensorEntry {
             tensor_id: tensor_id.clone(),
@@ -247,8 +247,8 @@ impl TensorDirectory {
         to_node: NodeId,
         data: Bytes,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let ctx = LogContext::new("transfer_tensor")
-            .with_tensor_id(tensor_id.clone());
+        let ctx = LogContext::new("transfer_tensor".to_string())
+            .with_session_id(tensor_id.clone());
 
         info!("Transferring tensor {} from {} to {} ({} bytes)", 
             tensor_id, from_node, to_node, data.len());

@@ -2,18 +2,14 @@
 
 use tracing::{info, warn, error, debug, instrument};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
-use opentelemetry::trace::TraceError;
-use opentelemetry::sdk::trace as sdktrace;
-use opentelemetry::sdk::resource::Resource;
-use opentelemetry::KeyValue;
 
 /// Initialize the observability stack.
-pub fn init(service_name: &str) -> Result<(), TraceError> {
+pub fn init(service_name: &str) {
     // Set up tracing subscriber
     let env_filter = EnvFilter::from_default_env()
         .add_directive(tracing::Level::INFO.into())
-        .add_directive("hyper=warn".into())
-        .add_directive("tonic=warn".into());
+        .add_directive("hyper=warn".parse().unwrap_or_else(|_| tracing::Level::WARN.into()))
+        .add_directive("tonic=warn".parse().unwrap_or_else(|_| tracing::Level::WARN.into()));
 
     // Console logging layer
     let fmt_layer = fmt::layer()
@@ -21,32 +17,21 @@ pub fn init(service_name: &str) -> Result<(), TraceError> {
         .with_thread_ids(true)
         .with_level(true);
 
-    // OpenTelemetry tracing layer (optional - requires Jaeger)
-    let tracer = opentelemetry_jaeger::new_agent_pipeline()
-        .with_service_name(service_name)
-        .with_auto_split_batch(true)
-        .init();
-
-    let telemetry_layer = tracing_opentelemetry::layer().with_tracer(tracer);
-
     // Combine layers
     tracing_subscriber::registry()
         .with(env_filter)
         .with(fmt_layer)
-        .with(telemetry_layer)
         .init();
 
     info!("Observability initialized for service: {}", service_name);
-
-    Ok(())
 }
 
 /// Initialize observability without distributed tracing (for development).
 pub fn init_simple(service_name: &str) {
     let env_filter = EnvFilter::from_default_env()
         .add_directive(tracing::Level::INFO.into())
-        .add_directive("hyper=warn".into())
-        .add_directive("tonic=warn".into());
+        .add_directive("hyper=warn".parse().unwrap_or_else(|_| tracing::Level::WARN.into()))
+        .add_directive("tonic=warn".parse().unwrap_or_else(|_| tracing::Level::WARN.into()));
 
     tracing_subscriber::fmt()
         .with_env_filter(env_filter)
@@ -110,7 +95,7 @@ impl MetricsCollector {
     #[instrument(skip(self))]
     pub fn record_timing<F, R>(&self, name: &str, labels: &[(&str, &str)], f: F) -> R
     where
-        F: FnOnce() -> R,
+        F: FnOnce() -> R + std::fmt::Debug,
     {
         let start = std::time::Instant::now();
         let result = f();

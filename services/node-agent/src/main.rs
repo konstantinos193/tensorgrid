@@ -3,20 +3,19 @@
 //! The node agent handles hardware detection, resource management,
 //! tensor allocation, and communicates with the coordinator.
 
-use cluster_types::{NodeId, ClusterId, NodeCapabilities, NodeResources, NodePermissions};
-use hardware_probe::HardwareProbe;
-use secure_pairing::{PairingManager, PairingRequest, PairingChallenge, PairingResponse};
+use cluster_types::{NodeId, ClusterId, NodePermissions};
+use secure_pairing::PairingManager;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{info, error, warn};
+use tracing::{info, error};
 use uuid::Uuid;
+use coordinator_client::{CoordinatorClient, RegisterRequest};
 
 mod coordinator_client;
 mod resource_manager;
 mod runtime_adapter;
 
-use coordinator_client::CoordinatorClient;
 use resource_manager::ResourceManager;
 use runtime_adapter::RuntimeAdapter;
 
@@ -24,6 +23,7 @@ use runtime_adapter::RuntimeAdapter;
 struct NodeAgent {
     node_id: Option<NodeId>,
     cluster_id: ClusterId,
+    coordinator_addr: String,
     coordinator_client: Option<CoordinatorClient>,
     pairing_manager: Arc<RwLock<PairingManager>>,
     resource_manager: ResourceManager,
@@ -32,13 +32,14 @@ struct NodeAgent {
 }
 
 impl NodeAgent {
-    fn new(cluster_id: ClusterId) -> Self {
+    fn new(cluster_id: ClusterId, coordinator_addr: String) -> Self {
         let pairing_manager = PairingManager::new_node(cluster_id)
             .expect("Failed to create pairing manager");
 
         Self {
             node_id: None,
             cluster_id,
+            coordinator_addr,
             coordinator_client: None,
             pairing_manager: Arc::new(RwLock::new(pairing_manager)),
             resource_manager: ResourceManager::new(),
@@ -62,38 +63,26 @@ impl NodeAgent {
 
         let mut client = CoordinatorClient::connect(coordinator_addr).await?;
         
-        let pairing_manager = self.pairing_manager.read().await;
-        let public_key = pairing_manager.public_key();
-        drop(pairing_manager);
-
         let hostname = gethostname::gethostname()
             .to_string_lossy()
             .to_string();
 
-        let request = secure_pairing::PairingRequest {
+        // Probe hardware capabilities
+        let capabilities = hardware_probe::HardwareProbe::probe_all()?;
+        let resources = self.resource_manager.get_current_resources().await;
+
+        let request = RegisterRequest {
             node_name: hostname.clone(),
             hostname,
-            cluster_id: self.cluster_id,
-            public_key: public_key.clone(),
-            fingerprint: secure_pairing::generate_fingerprint(&public_key),
-        };
-
-        // Generate pairing challenge
-        let challenge = pairing_manager.generate_challenge(&request)?;
-
-        // Send registration request to coordinator
-        let register_request = coordinator_client::control::RegisterRequest {
-            node_name: request.node_name.clone(),
-            hostname: request.hostname,
             cluster_id: self.cluster_id.to_string(),
-            pairing_challenge: challenge.challenge.clone(),
-            pairing_signature: public_key,
+            capabilities,
+            resources,
         };
 
-        let response = client.register(register_request).await?;
+        let response = client.register(request).await?;
 
         if !response.success {
-            return Err(anyhow::anyhow!("Registration failed: {}", response.error_message));
+            return Err(format!("Registration failed: {}", response.error_message.unwrap_or_else(|| "Unknown error".to_string())).into());
         }
 
         let node_id = Uuid::parse_str(&response.node_id)?;
@@ -104,9 +93,8 @@ impl NodeAgent {
         Ok(())
     }
 
-    async fn start_heartbeat_loop(&self) {
+    async fn start_heartbeat_loop(&mut self) {
         let node_id = self.node_id.expect("Node ID not set");
-        let cluster_id = self.cluster_id;
         let mut sequence = 0u64;
         let mut reconnect_attempts = 0u32;
         let max_reconnect_attempts = 5;
@@ -114,14 +102,16 @@ impl NodeAgent {
         loop {
             // Ensure we have a client
             if self.coordinator_client.is_none() {
+                let coordinator_addr = self.coordinator_addr.clone();
                 info!("No coordinator client, attempting to register...");
-                if let Err(e) = self.register_with_retry(&self.coordinator_addr, cluster_id, reconnect_attempts).await {
+                if let Err(e) = self.register_with_retry(&coordinator_addr, reconnect_attempts).await {
                     error!("Registration failed: {}", e);
                     reconnect_attempts += 1;
                     if reconnect_attempts >= max_reconnect_attempts {
                         error!("Max reconnection attempts reached, giving up");
                         break;
                     }
+                    drop(e); // Drop error before await to fix Send trait
                     tokio::time::sleep(Duration::from_secs(5 * reconnect_attempts as u64)).await;
                     continue;
                 }
@@ -154,7 +144,7 @@ impl NodeAgent {
         }
     }
 
-    async fn register_with_retry(&mut self, coordinator_addr: &str, cluster_id: ClusterId, attempt: u32) -> Result<(), Box<dyn std::error::Error>> {
+    async fn register_with_retry(&mut self, coordinator_addr: &str, attempt: u32) -> Result<(), Box<dyn std::error::Error>> {
         info!("Attempting registration (attempt {})", attempt + 1);
         self.register(coordinator_addr).await
     }
@@ -172,20 +162,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting Node Agent");
 
     let cluster_id = Uuid::new_v4();
-    let mut agent = NodeAgent::new(cluster_id);
-
+    
     // Get coordinator address from environment or use default
     let coordinator_addr = std::env::var("COORDINATOR_ADDR")
-        .unwrap_or_else(|_| "http://[::1]:50051".to_string());
+        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+    
+    let mut agent = NodeAgent::new(cluster_id, coordinator_addr.clone());
 
     // Register with coordinator
     agent.register(&coordinator_addr).await?;
 
     // Start heartbeat loop
-    let agent_arc = Arc::new(agent);
-    let heartbeat_agent = agent_arc.clone();
-    tokio::spawn(async move {
-        heartbeat_agent.start_heartbeat_loop().await;
+    tokio::task::spawn_blocking(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            agent.start_heartbeat_loop().await;
+        });
     });
 
     // Keep the agent running

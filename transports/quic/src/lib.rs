@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::info;
 use quinn::{Endpoint, ServerConfig, ClientConfig, Connection, RecvStream, SendStream};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
@@ -22,11 +22,11 @@ pub struct QuicServer {
 
 impl QuicServer {
     pub async fn new(bind_addr: SocketAddr, cert: CertificateDer<'static>, key: PrivateKeyDer<'static>) -> Result<Self, QuicError> {
-        let ctx = LogContext::new("quic_server");
+        let ctx = LogContext::new("quic_server".to_string());
         info!("Starting QUIC server on {}", bind_addr);
 
         // Configure server TLS
-        let server_config = ServerConfig::with_single_cert(vec![cert.clone()], key.clone())
+        let server_config = ServerConfig::with_single_cert(vec![cert.clone()], key.clone_key())
             .map_err(|e| QuicError::ConfigError(e.to_string()))?;
 
         let endpoint = Endpoint::server(server_config, bind_addr.into())
@@ -103,7 +103,7 @@ impl QuicServer {
         send.write_all(&data).await
             .map_err(|e| QuicError::SendError(e.to_string()))?;
 
-        send.finish().await
+        send.finish()
             .map_err(|e| QuicError::SendError(e.to_string()))?;
 
         self.metrics.increment_counter("tensors_sent", 1, &[]);
@@ -127,25 +127,25 @@ pub struct QuicClient {
     endpoint: Endpoint,
     metrics: MetricsCollector,
     server_addr: SocketAddr,
-    server_cert: CertificateDer<'static>,
+    _server_cert: CertificateDer<'static>,
 }
 
 impl QuicClient {
     pub async fn new(server_addr: SocketAddr, server_cert: CertificateDer<'static>) -> Result<Self, QuicError> {
-        let ctx = LogContext::new("quic_client");
+        let ctx = LogContext::new("quic_client".to_string());
         info!("Creating QUIC client for {}", server_addr);
 
         // Configure client TLS
         let mut roots = rustls::RootCertStore::empty();
         roots.add(server_cert.clone())
-            .map_err(|e| QuicError::ConfigError(e.to_string()))?;
+            .map_err(|e: rustls::Error| QuicError::ConfigError(e.to_string()))?;
 
-        let client_config = ClientConfig::builder()
-            .with_root_certificates(roots)
-            .with_no_client_auth()
-            .map_err(|e| QuicError::ConfigError(e.to_string()))?;
+        let _client_config = ClientConfig::with_root_certificates(roots.into())
+            .map_err(|e: rustls::client::VerifierBuilderError| QuicError::ConfigError(e.to_string()))?;
 
-        let endpoint = Endpoint::new(client_config)
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0")
+            .map_err(|e| QuicError::ConfigError(e.to_string()))?;
+        let endpoint = Endpoint::new(Default::default(), None, socket, Arc::new(quinn::TokioRuntime))
             .map_err(|e| QuicError::ConfigError(e.to_string()))?;
 
         let metrics = MetricsCollector::new("quic-transport".to_string());
@@ -156,7 +156,7 @@ impl QuicClient {
             endpoint,
             metrics,
             server_addr,
-            server_cert,
+            _server_cert: server_cert,
         })
     }
 
@@ -176,7 +176,7 @@ impl QuicClient {
 
     /// Receive tensor data from server.
     pub async fn receive_tensor(&self, conn: &Connection) -> Result<(TensorId, Bytes), QuicError> {
-        let (mut recv, _send) = conn.accept_bi().await
+        let (_send, mut recv) = conn.accept_bi().await
             .map_err(|e| QuicError::StreamError(e.to_string()))?;
 
         // Read metadata length
@@ -236,7 +236,7 @@ impl QuicClient {
         send.write_all(&data).await
             .map_err(|e| QuicError::SendError(e.to_string()))?;
 
-        send.finish().await
+        send.finish()
             .map_err(|e| QuicError::SendError(e.to_string()))?;
 
         self.metrics.increment_counter("tensors_sent", 1, &[]);

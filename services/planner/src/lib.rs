@@ -4,16 +4,11 @@
 //! and hardware capabilities.
 
 use cluster_types::{
-    ModelId, NodeId, ExecutionPlan, ParallelismStrategy, PerformanceEstimate,
-    StagePlan, KvCachePlan, KvCachePolicy, LogicalCluster, ClusterTopology,
-    LinkMeasurement, MemoryTier,
+    ModelId, ExecutionPlan, ParallelismStrategy, PerformanceEstimate,
+    StagePlan, KvCachePlan, KvCachePolicy, LogicalCluster, ClusterTopology, NodeStatus,
 };
-use model_format::GgufModel;
 use observability::{LogContext, MetricsCollector};
-use topology::{TopologyProfiler, LinkQuality};
-use std::collections::HashMap;
-use uuid::Uuid;
-use tracing::{info, warn, error};
+use tracing::{info, warn};
 
 /// Planning request.
 #[derive(Debug, Clone)]
@@ -53,7 +48,7 @@ impl Planner {
         request: PlanningRequest,
         cluster: &LogicalCluster,
     ) -> Result<ExecutionPlan, PlanningError> {
-        let ctx = LogContext::new("create_plan")
+        let ctx = LogContext::new("create_plan".to_string())
             .with_model_id(request.model_id.clone());
 
         info!("Creating execution plan for model: {}", request.model_id);
@@ -72,7 +67,7 @@ impl Planner {
 
         let plan = ExecutionPlan {
             model_id: request.model_id,
-            strategy,
+            strategy: strategy.clone(),
             estimated,
             stages,
             kv_cache,
@@ -94,8 +89,8 @@ impl Planner {
         cluster: &LogicalCluster,
     ) -> Result<ParallelismStrategy, PlanningError> {
         // Use user preference if specified
-        if let Some(strategy) = request.preferred_strategy {
-            return Ok(strategy);
+        if let Some(strategy) = &request.preferred_strategy {
+            return Ok(strategy.clone());
         }
 
         // Analyze cluster topology
@@ -129,7 +124,7 @@ impl Planner {
         let available_nodes: Vec<_> = cluster
             .nodes
             .iter()
-            .filter(|(_, node)| node.status == cluster_types::NodeStatus::Healthy)
+            .filter(|(_, node)| node.status == NodeStatus::Healthy)
             .collect();
 
         if available_nodes.is_empty() {
@@ -227,7 +222,7 @@ impl Planner {
                         .filter(|(_, node)| node.capabilities.gpus.is_empty())
                         .collect();
 
-                    if let Some((node_id, node)) = cpu_nodes.first() {
+                    if let Some((node_id, _node)) = cpu_nodes.first() {
                         let layers: Vec<u32> = (current_layer..layer_count).collect();
                         let weight_bytes = self.estimate_stage_weight(
                             &layers,
@@ -259,7 +254,7 @@ impl Planner {
         &self,
         request: &PlanningRequest,
         cluster: &LogicalCluster,
-        stages: &[StagePlan],
+        _stages: &[StagePlan],
     ) -> Result<KvCachePlan, PlanningError> {
         // Estimate KV cache size
         let kv_bytes_per_token_per_layer = 2 * 4096 * 2; // Simplified: 2 KV heads * 4096 dim * 2 bytes

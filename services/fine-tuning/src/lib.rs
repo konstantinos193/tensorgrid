@@ -2,7 +2,6 @@
 //!
 //! Provides distributed fine-tuning capabilities for customizing models on specific datasets.
 
-use cluster_types::{NodeId, LogicalCluster};
 use model_registry::ModelRegistry;
 use scheduler::Scheduler;
 use planner::Planner;
@@ -11,7 +10,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::info;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
@@ -59,9 +58,9 @@ pub struct FineTuningJob {
 pub struct FineTuningService {
     jobs: Arc<RwLock<HashMap<Uuid, FineTuningJob>>>,
     model_registry: Arc<ModelRegistry>,
-    scheduler: Arc<Scheduler>,
-    planner: Arc<Planner>,
-    runtime: Arc<GgmlRuntime>,
+    _scheduler: Arc<Scheduler>,
+    _planner: Arc<Planner>,
+    _runtime: Arc<GgmlRuntime>,
 }
 
 impl FineTuningService {
@@ -74,9 +73,9 @@ impl FineTuningService {
         Self {
             jobs: Arc::new(RwLock::new(HashMap::new())),
             model_registry,
-            scheduler,
-            planner,
-            runtime,
+            _scheduler: scheduler,
+            _planner: planner,
+            _runtime: runtime,
         }
     }
 
@@ -87,7 +86,7 @@ impl FineTuningService {
         info!("Creating fine-tuning job {} for model {}", job_id, config.base_model);
 
         // Validate base model exists
-        if !self.model_registry.model_exists(&config.base_model).await {
+        if self.model_registry.get_model(&config.base_model).await.is_none() {
             return Err(FineTuningError::ModelNotFound(config.base_model));
         }
 
@@ -138,7 +137,7 @@ impl FineTuningService {
 
         // Spawn background task for training
         let jobs_ref = self.jobs.clone();
-        let runtime_ref = self.runtime.clone();
+        let runtime_ref = self._runtime.clone();
         let config = job.config.clone();
         
         tokio::spawn(async move {
@@ -248,7 +247,7 @@ impl FineTuningService {
         job_id: Uuid,
         config: FineTuningConfig,
         jobs: Arc<RwLock<HashMap<Uuid, FineTuningJob>>>,
-        runtime: Arc<GgmlRuntime>,
+        _runtime: Arc<GgmlRuntime>,
     ) {
         info!("Starting training for job {}", job_id);
 

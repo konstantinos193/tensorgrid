@@ -1,8 +1,6 @@
 //! HTTP client for communicating with the coordinator API.
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Cluster information.
 #[derive(Debug, Clone, Serialize, Deserialize)]

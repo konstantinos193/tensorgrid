@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::info;
 
 /// RDMA transport server.
 pub struct RdmaServer {
@@ -21,7 +21,7 @@ pub struct RdmaServer {
 
 impl RdmaServer {
     pub async fn new(bind_addr: SocketAddr) -> Result<Self, RdmaError> {
-        let ctx = LogContext::new("rdma_server");
+        let ctx = LogContext::new("rdma_server".to_string());
         info!("Starting RDMA server on {}", bind_addr);
 
         // In a real implementation, this would:
@@ -87,12 +87,9 @@ impl RdmaServer {
     }
 
     /// Send tensor data using RDMA write.
-    pub async fn send_tensor(&self, node_id: NodeId, tensor_id: TensorId, data: Bytes) -> Result<(), RdmaError> {
-        let connections = self.active_connections.read().await;
+    pub async fn send_tensor(&self, _node_id: NodeId, _tensor_id: TensorId, data: Bytes) -> Result<(), RdmaError> {
+        let _connections = self.active_connections.read().await;
         
-        let _conn = connections.get(&node_id)
-            .ok_or_else(|| RdmaError::NodeNotFound(node_id))?;
-
         // In a real implementation, this would:
         // 1. Register data as memory region
         // 2. Post RDMA write work request
@@ -144,8 +141,23 @@ pub struct RdmaClient {
 }
 
 impl RdmaClient {
+    /// Generate a local key for memory regions.
+    fn generate_lkey() -> u32 {
+        rand::random::<u32>()
+    }
+
+    /// Generate a remote key for memory regions.
+    fn generate_rkey() -> u32 {
+        rand::random::<u32>()
+    }
+
+    /// Generate a queue pair number.
+    fn generate_qp_num() -> u32 {
+        rand::random::<u32>()
+    }
+
     pub async fn new(server_addr: SocketAddr) -> Result<Self, RdmaError> {
-        let ctx = LogContext::new("rdma_client");
+        let ctx = LogContext::new("rdma_client".to_string());
         info!("Creating RDMA client for {}", server_addr);
 
         let metrics = MetricsCollector::new("rdma-transport".to_string());
@@ -207,7 +219,7 @@ impl RdmaClient {
     }
 
     /// Receive tensor data using RDMA read.
-    pub async fn receive_tensor(&self, tensor_id: TensorId, size: u64) -> Result<Bytes, RdmaError> {
+    pub async fn receive_tensor(&self, _tensor_id: TensorId, size: u64) -> Result<Bytes, RdmaError> {
         let conn = self.connection.read().await;
         
         let _conn = conn.as_ref()
@@ -234,7 +246,7 @@ impl RdmaClient {
     }
 
     /// Send tensor data using RDMA write.
-    pub async fn send_tensor(&self, tensor_id: TensorId, data: Bytes) -> Result<(), RdmaError> {
+    pub async fn send_tensor(&self, _tensor_id: TensorId, data: Bytes) -> Result<(), RdmaError> {
         let conn = self.connection.read().await;
         
         let _conn = conn.as_ref()
@@ -250,10 +262,6 @@ impl RdmaClient {
         self.metrics.record_histogram("rdma_transfer_us", start.elapsed().as_micros() as f64, &[]);
 
         Ok(())
-    }
-
-    fn generate_qp_num() -> u32 {
-        rand::random::<u32>()
     }
 }
 

@@ -12,6 +12,3 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
-opentelemetry = "0.23"
-opentelemetry-jaeger = "0.22"
-tracing-opentelemetry = "0.24"

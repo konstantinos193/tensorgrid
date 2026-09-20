@@ -1,6 +1,6 @@
 //! Resource management for the node agent.
 
-use cluster_types::{NodeCapabilities, NodeResources, GpuUsage};
+use cluster_types::{NodeCapabilities, NodeResources};
 use hardware_probe::HardwareProbe;
 use std::sync::Arc;
 use tokio::sync::RwLock;

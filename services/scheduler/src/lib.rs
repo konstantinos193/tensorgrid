@@ -2,13 +2,11 @@
 //!
 //! Manages resource allocation, session scheduling, and admission control.
 
-use cluster_types::{NodeId, SessionId, ModelId, LogicalCluster, NodeStatus, NodeResources};
+use cluster_types::{NodeId, SessionId, ModelId, LogicalCluster, NodeStatus};
 use observability::{LogContext, MetricsCollector};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
-use tracing::{info, warn, error};
 
 /// Session scheduling request.
 #[derive(Debug, Clone)]
@@ -79,7 +77,7 @@ impl Scheduler {
 
     /// Schedule a new session.
     pub async fn schedule(&self, request: ScheduleRequest) -> Result<ScheduledSession, ScheduleError> {
-        let ctx = LogContext::new("schedule")
+        let ctx = LogContext::new("schedule".to_string())
             .with_session_id(request.session_id.to_string())
             .with_model_id(request.model_id.clone());
 
@@ -87,7 +85,7 @@ impl Scheduler {
         
         // Check admission control
         if !self.check_admission(&request, &cluster).await {
-            self.metrics.increment_counter("schedule_rejections", 1, &["reason=admission"]);
+            self.metrics.increment_counter("schedule_rejections", 1, &[("reason", "admission")]);
             return Err(ScheduleError::AdmissionRejected);
         }
 
@@ -95,7 +93,7 @@ impl Scheduler {
         let selected_nodes = self.select_nodes(&request, &cluster).await?;
         
         if selected_nodes.is_empty() {
-            self.metrics.increment_counter("schedule_rejections", 1, &["reason=no_nodes"]);
+            self.metrics.increment_counter("schedule_rejections", 1, &[("reason", "no_nodes")]);
             return Err(ScheduleError::NoAvailableNodes);
         }
 
@@ -128,7 +126,7 @@ impl Scheduler {
 
     /// Release resources for a completed session.
     pub async fn release_session(&self, session_id: SessionId) -> Result<(), ScheduleError> {
-        let ctx = LogContext::new("release_session")
+        let ctx = LogContext::new("release_session".to_string())
             .with_session_id(session_id.to_string());
 
         let mut sessions = self.sessions.write().await;
@@ -182,7 +180,7 @@ impl Scheduler {
         let mut node_scores: Vec<(NodeId, f32)> = cluster
             .nodes
             .iter()
-            .filter(|(_, node)| node.status == NodeStatus::Healthy)
+            .filter(|(_, node)| matches!(node.status, NodeStatus::Healthy))
             .map(|(id, node)| {
                 let score = self.calculate_node_score(node);
                 (*id, score)
